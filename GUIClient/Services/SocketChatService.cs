@@ -18,7 +18,7 @@ public sealed class SocketChatService : IChatService
 
     public async Task ConnectAsync(string username)
     {
-        await tcpClient.ConnectAsync("192.168.0.192", 8080);
+        await tcpClient.ConnectAsync("127.0.0.1", 8080);
         tcpStream = tcpClient.GetStream();
         await WriteMessageAsync(tcpStream, username);
         _ = Task.Run(async () =>

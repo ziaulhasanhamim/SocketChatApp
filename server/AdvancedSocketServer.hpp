@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include "MessageDispatcher.hpp"
 #include "SocketServer.hpp"
 
 using namespace std;
@@ -12,12 +13,14 @@ namespace ChatApp::server
 
     class AdvancedClientHandler : public ClientHandler
     {
+        MessageDispatcher<AdvancedSocketServer> dispatcher;
         void HandleClientMessage(const string &msg, const string &sender);
-
+        void SetupDispatcher();
     public:
         AdvancedClientHandler(const string &name, shared_ptr<ISocketDevice> s, AdvancedSocketServer *srv) : ClientHandler(s, (SocketServer *)srv)
         {
             client_name = name;
+            SetupDispatcher();
         }
         void HandleClient() override;
         friend class AdvancedSocketServer;

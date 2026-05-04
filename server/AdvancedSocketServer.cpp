@@ -135,6 +135,26 @@ namespace ChatApp::server
         }
     }
 
+    void AdvancedClientHandler::SetupDispatcher()
+    {
+        dispatcher.Register("broadcast",
+                            [](AdvancedSocketServer *server, const json &jmsg, const std::string &sender)
+                            {
+                                server->BroadcastMessage(
+                                    jmsg["content"].get<std::string>(),
+                                    sender);
+                            });
+
+        dispatcher.Register("private-message",
+                            [](AdvancedSocketServer *server, const json &jmsg, const std::string &sender)
+                            {
+                                server->PrivateMessage(
+                                    jmsg["content"].get<std::string>(),
+                                    sender,
+                                    jmsg["receiver"].get<std::string>());
+                            });
+    }
+
     void AdvancedClientHandler::HandleClient()
     {
         string temp_buffer;
@@ -176,22 +196,28 @@ namespace ChatApp::server
                                         [this](const auto &c)
                                         { return c->GetName() == client_name; }),
                               server->clients.end());
-        static_cast<AdvancedSocketServer*>(server)->BroadcastClientDetails();
+        auto srv = dynamic_cast<AdvancedSocketServer*>(server);
+        if (srv == nullptr)
+        {
+            cout << "Error: Server pointer is not of type AdvancedSocketServer." << endl;
+            exit(1);
+        }
+        srv->BroadcastClientDetails();
         cout << "[AdvancedServer] " << client_name << " handler exiting." << endl;
     }
 
-    void AdvancedClientHandler::HandleClientMessage(const string &msg, const string &sender)
+    void AdvancedClientHandler::HandleClientMessage(
+        const std::string &msg,
+        const std::string &sender)
     {
         json jmsg = json::parse(msg);
-        auto server = static_cast<AdvancedSocketServer *>(this->server);
-        if (jmsg["messageType"].get<string>() == "broadcast")
+        auto srv = dynamic_cast<AdvancedSocketServer*>(server);
+        if (srv == nullptr)
         {
-            string content = jmsg["content"].get<string>();
-            server->BroadcastMessage(content, sender);
+            cout << "Error: Server pointer is not of type AdvancedSocketServer." << endl;
+            exit(1);
         }
-        if (jmsg["messageType"].get<string>() == "private-message")
-        {
-            server->PrivateMessage(jmsg["content"].get<string>(), sender, jmsg["receiver"].get<string>());
-        }
+        
+        dispatcher.Dispatch(srv, jmsg, sender);
     }
 }

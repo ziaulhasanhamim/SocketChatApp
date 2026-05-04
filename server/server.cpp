@@ -7,7 +7,7 @@ using namespace ChatApp::server;
 
 int main()
 {
-    auto socket = CreateServerSocket("192.168.0.192", 8080);
+    auto socket = CreateServerSocket("127.0.0.1", 8080);
     auto server = make_unique<AdvancedSocketServer>(socket);
     server->Start();
     return 0;
