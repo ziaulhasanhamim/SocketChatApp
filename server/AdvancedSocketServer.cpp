@@ -1,0 +1,197 @@
+#include <iostream>
+#include "AdvancedSocketServer.hpp"
+#include <thread>
+#include "json.hpp"
+
+using json = nlohmann::json;
+
+using namespace std;
+
+namespace ChatApp::server
+{
+    void AdvancedSocketServer::Start()
+    {
+        serverSocket->Listen();
+        cout << "[AdvancedServer] Listening for connections..." << endl;
+
+        while (isRunning)
+        {
+            auto clientSock = serverSocket->Accept();
+            if (clientSock)
+            {
+
+                char size[4];
+                string client_name;
+
+                int valread = clientSock->Receive(size, sizeof(size));
+                if (valread <= 0)
+                {
+                    clientSock->Close();
+                    continue;
+                }
+                uint32_t msg_len = 0;
+                memcpy(&msg_len, size, 4);
+                msg_len = ntohl(msg_len);
+                char buffer[msg_len];
+                valread = clientSock->Receive(buffer, msg_len);
+
+                if (valread <= 0)
+                {
+                    clientSock->Close();
+                    break;
+                }
+                client_name = string(buffer, valread);
+
+                cout << "[AdvancedServer] " << client_name << " connected." << endl;
+                auto isDuplicate = false;
+                for (auto &client : clients)
+                {
+                    if (client->GetName() == client_name)
+                    {
+                        clientSock->Close();
+                        cout << "[AdvancedServer] duplicate connection for " << client_name << "." << endl;
+                        isDuplicate = true;
+                        break;
+                    }
+                }
+                if (isDuplicate)
+                    continue;
+                auto handler = make_shared<AdvancedClientHandler>(client_name, clientSock, this);
+                *this += handler;
+                thread(&AdvancedClientHandler::HandleClient, handler).detach();
+                BroadcastClientDetails();
+            }
+        }
+    }
+
+    void AdvancedSocketServer::BroadcastClientDetails()
+    {
+        vector<string> clientNames;
+        for (const auto &client : clients)
+        {
+            clientNames.push_back(client->GetName());
+        }
+        json jmsg;
+        jmsg["messageType"] = "client-list";
+        jmsg["clients"] = clientNames;
+        auto payload = jmsg.dump();
+        uint32_t len = payload.size();
+        uint32_t netLen = htonl(len);
+        char formattedMsg[4 + payload.size()];
+        memcpy(formattedMsg, &netLen, 4);
+        memcpy(formattedMsg + 4, payload.data(), payload.size());
+        cout << "Broadcasting client list: " << payload << endl;
+
+        for (auto &client : clients)
+        {
+            client->SendMessage(formattedMsg, 4 + payload.size());
+        }
+    }
+
+    void AdvancedSocketServer::BroadcastMessage(const string &msg, const string &sender)
+    {
+        json jmsg;
+        jmsg["messageType"] = "broadcast";
+        jmsg["content"] = msg;
+        jmsg["sender"] = sender;
+
+        string payload = jmsg.dump();
+
+        uint32_t len = payload.size();
+        uint32_t netLen = htonl(len);
+        char framedMsg[4 + payload.size()];
+        memcpy(framedMsg, &netLen, 4);
+        memcpy(framedMsg + 4, payload.data(), payload.size());
+        cout << "Broadcasting message from " << sender << ": " << msg << endl;
+        for (auto &client : clients)
+        {
+            if (client->GetName() != sender)
+            {
+                client->SendMessage(framedMsg, 4 + payload.size());
+            }
+        }
+    }
+
+    void AdvancedSocketServer::PrivateMessage(const string &msg, const string &sender, const string &recver)
+    {
+        json jmsg;
+        jmsg["messageType"] = "private-message";
+        jmsg["content"] = msg;
+        jmsg["sender"] = sender;
+        auto payload = jmsg.dump();
+        uint32_t len = payload.size();
+        uint32_t netLen = htonl(len);
+        char framedMsg[4 + payload.size()];
+        memcpy(framedMsg, &netLen, 4);
+        memcpy(framedMsg + 4, payload.data(), payload.size());
+        cout << "Sending private message from " << sender << " to " << recver << ": " << msg << endl;
+        for (auto &client : clients)
+        {
+            if (client->GetName() == recver)
+            {
+                client->SendMessage(framedMsg, 4 + payload.size());
+                break;
+            }
+        }
+    }
+
+    void AdvancedClientHandler::HandleClient()
+    {
+        string temp_buffer;
+        char buffer[1024];
+        while (isRunning)
+        {
+            int valread = socket->Receive(buffer, 1024);
+
+            if (valread <= 0)
+            {
+                cout << "[Server] " << client_name << " disconnected." << endl;
+                break;
+            }
+
+            temp_buffer.append(buffer, valread);
+
+            while (true)
+            {
+                if (temp_buffer.size() < 4)
+                    break;
+
+                uint32_t msg_len = 0;
+                memcpy(&msg_len, temp_buffer.data(), 4);
+                msg_len = ntohl(msg_len);
+
+                if (temp_buffer.size() < 4 + msg_len)
+                    break;
+
+                string message = temp_buffer.substr(4, msg_len);
+
+                temp_buffer.erase(0, 4 + msg_len);
+
+                HandleClientMessage(message, client_name);
+                cout << "[" << client_name << "]: " << message << endl;
+            }
+        }
+        isRunning = false;
+        server->clients.erase(remove_if(server->clients.begin(), server->clients.end(),
+                                        [this](const auto &c)
+                                        { return c->GetName() == client_name; }),
+                              server->clients.end());
+        static_cast<AdvancedSocketServer*>(server)->BroadcastClientDetails();
+        cout << "[AdvancedServer] " << client_name << " handler exiting." << endl;
+    }
+
+    void AdvancedClientHandler::HandleClientMessage(const string &msg, const string &sender)
+    {
+        json jmsg = json::parse(msg);
+        auto server = static_cast<AdvancedSocketServer *>(this->server);
+        if (jmsg["messageType"].get<string>() == "broadcast")
+        {
+            string content = jmsg["content"].get<string>();
+            server->BroadcastMessage(content, sender);
+        }
+        if (jmsg["messageType"].get<string>() == "private-message")
+        {
+            server->PrivateMessage(jmsg["content"].get<string>(), sender, jmsg["receiver"].get<string>());
+        }
+    }
+}

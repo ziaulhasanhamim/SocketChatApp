@@ -1,0 +1,152 @@
+@page "/chat/{username}"
+@inject NavigationManager Navigation
+@inject IChatService ChatService
+@using System.Net.Sockets
+@using System.Text
+
+<div class="container-fluid chat-container">
+    <div class="row h-100">
+
+        <!-- Sidebar -->
+        <div class="col-md-4 col-lg-3 sidebar p-0">
+            <div class="p-3 border-bottom">
+                <h5>Chats</h5>
+                <input type="text" class="form-control" placeholder="Search...">
+            </div>
+
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item chat-list-item" @onclick=@(() => ChangeChat("Global Chat"))>
+                    <strong>Global Chat</strong><br>
+                    <small class="text-muted">Online</small>
+                </li>
+                @foreach (var user in users)
+                {
+                    <li class="list-group-item chat-list-item" @onclick=@(() => ChangeChat(user))>
+                        <strong>@user</strong><br>
+                        <small class="text-muted">Online</small>
+                    </li>
+                }
+            </ul>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="col-md-8 col-lg-9 p-0">
+            <div class="chat-box">
+
+                <div class="chat-header d-flex align-items-center">
+                    <img src="https://via.placeholder.com/40" class="rounded-circle me-2">
+                    <div>
+                        <strong>@currentChat</strong><br>
+                        <small class="text-muted">Online</small>
+                    </div>
+                </div>
+
+                <!-- Messages -->
+                <div class="chat-messages">
+                    @foreach (var message in messages[currentChat])
+                    {
+                        <div class="message @(message.IsSent ? "sent" : "received")">
+                            @message.Content
+                        </div>
+                    }
+                </div>
+
+                <!-- Input -->
+                <div class="chat-input">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Type a message..." @bind="inputValue">
+                            <button class="btn btn-primary" @onclick="() => SendMessage()">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+@code {
+    [Parameter]
+    public string Username { get; set; } = "";
+
+    Dictionary<string, List<Message>> messages = new()
+    {
+        ["Global Chat"] = []
+    };
+
+    List<string> users = [];
+    string currentChat = "Global Chat";
+
+    string inputValue = string.Empty;
+
+    public async Task SendMessage()
+    {
+        if (!string.IsNullOrWhiteSpace(inputValue))
+        {
+            if (currentChat != "Global Chat")
+            {
+                await ChatService.SendPrivateMessageAsync(currentChat, inputValue);
+                messages[currentChat].Add(new Message(inputValue, true));
+                inputValue = string.Empty;
+                return;
+            }
+            await ChatService.SendMessageAsync(inputValue);
+            messages[currentChat].Add(new Message(inputValue, true));
+            inputValue = string.Empty;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        ChatService.OnDisconnected += async () =>
+        {
+            await InvokeAsync( async() =>
+            {
+                await Application.Current!.Windows[0].Page!.DisplayAlertAsync(
+                    "Disconnected",
+                    "You have been disconnected from the server. Redirecting to login page.",
+                    "OK"
+                );
+                Navigation.NavigateTo("/");
+                StateHasChanged();
+            });
+        };
+        ChatService.OnMessageReceived += async (msg) =>
+        {
+            var chatKey = msg.Type is ChatMessageType.Private ? msg.Sender! : "Global Chat";
+            var content = msg.Type switch
+            {
+                ChatMessageType.Broadcast => $"{msg.Sender}: {msg.Content}",
+                _ => msg.Content
+            };
+            if (!messages.ContainsKey(chatKey))
+            {
+                messages[chatKey] = [];
+            }
+            messages[chatKey].Add(new Message(content, IsSent: false));
+            await InvokeAsync(StateHasChanged);
+        };
+        ChatService.OnUserListUpdated += async (List<string> userList) =>
+        {
+            await InvokeAsync(() =>
+            {
+                users = userList.Where(u => u != Username).ToList();
+                StateHasChanged();
+            });
+        };
+        
+        await ChatService.ConnectAsync(Username);
+        await base.OnInitializedAsync();
+    }
+
+    void ChangeChat(string chat)
+    {
+        currentChat = chat;
+        messages.TryAdd(chat, []);
+    }
+
+    record Message(string Content, bool IsSent);
+    void Dispose()
+    {
+        messages = [];
+    }
+}

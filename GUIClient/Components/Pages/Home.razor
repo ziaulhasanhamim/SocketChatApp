@@ -1,0 +1,12 @@
+﻿@page "/"
+
+<h1>Write your username</h1>
+
+<input @bind="userName" placeholder="Enter your username" />
+<p class="m-3">
+    <a class="btn btn-primary" href="chat/@userName">Go to chat</a>
+</p>
+
+@code {
+    string userName = string.Empty;
+}
