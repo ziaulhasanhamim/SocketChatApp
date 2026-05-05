@@ -16,7 +16,7 @@ public:
 
     void Register(const string& messageType, HandlerFn handler)
     {
-        handlers[messageType] = move(handler);
+        handlers[messageType] = std::move(handler);
     }
 
     void Dispatch(ServerType* server, const json& message, const string& sender)

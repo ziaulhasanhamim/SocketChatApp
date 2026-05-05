@@ -16,7 +16,7 @@ namespace ChatApp::server
     void AdvancedSocketServer::Start()
     {
         serverSocket->Listen();
-        cout << "[AdvancedServer] Listening for connections..." << endl;
+        logStream << "[AdvancedServer] Listening for connections..." << endl;
 
         while (isRunning)
         {
@@ -45,21 +45,21 @@ namespace ChatApp::server
                 }
                 client_name = string(buffer, valread);
 
-                cout << "[AdvancedServer] " << client_name << " connected." << endl;
+                logStream << "[AdvancedServer] " << client_name << " connected." << endl;
                 auto isDuplicate = false;
                 for (auto &client : clients)
                 {
                     if (client->GetName() == client_name)
                     {
                         clientSock->Close();
-                        cout << "[AdvancedServer] duplicate connection for " << client_name << "." << endl;
+                        logStream << "[AdvancedServer] duplicate connection for " << client_name << "." << endl;
                         isDuplicate = true;
                         break;
                     }
                 }
                 if (isDuplicate)
                     continue;
-                auto handler = make_shared<AdvancedClientHandler>(client_name, clientSock, this);
+                auto handler = make_shared<AdvancedClientHandler>(client_name, clientSock, this, logStream);
                 *this += handler;
                 thread(&AdvancedClientHandler::HandleClient, handler).detach();
                 BroadcastClientDetails();
@@ -83,7 +83,7 @@ namespace ChatApp::server
         char formattedMsg[4 + payload.size()];
         memcpy(formattedMsg, &netLen, 4);
         memcpy(formattedMsg + 4, payload.data(), payload.size());
-        cout << "Broadcasting client list: " << payload << endl;
+        logStream << "Broadcasting client list: " << payload << endl;
 
         for (auto &client : clients)
         {
@@ -105,7 +105,7 @@ namespace ChatApp::server
         char framedMsg[4 + payload.size()];
         memcpy(framedMsg, &netLen, 4);
         memcpy(framedMsg + 4, payload.data(), payload.size());
-        cout << "Broadcasting message from " << sender << ": " << msg << endl;
+        logStream << "Broadcasting message from " << sender << ": " << msg << endl;
         for (auto &client : clients)
         {
             if (client->GetName() != sender)
@@ -127,7 +127,7 @@ namespace ChatApp::server
         char framedMsg[4 + payload.size()];
         memcpy(framedMsg, &netLen, 4);
         memcpy(framedMsg + 4, payload.data(), payload.size());
-        cout << "Sending private message from " << sender << " to " << recver << ": " << msg << endl;
+        logStream << "Sending private message from " << sender << " to " << recver << ": " << msg << endl;
         for (auto &client : clients)
         {
             if (client->GetName() == recver)
@@ -168,7 +168,7 @@ namespace ChatApp::server
 
             if (valread <= 0)
             {
-                cout << "[Server] " << client_name << " disconnected." << endl;
+                logStream << "[Server] " << client_name << " disconnected." << endl;
                 break;
             }
 
@@ -191,7 +191,7 @@ namespace ChatApp::server
                 temp_buffer.erase(0, 4 + msg_len);
 
                 HandleClientMessage(message, client_name);
-                cout << "[" << client_name << "]: " << message << endl;
+                logStream << "[" << client_name << "]: " << message << endl;
             }
         }
         isRunning = false;
@@ -202,11 +202,11 @@ namespace ChatApp::server
         auto srv = dynamic_cast<AdvancedSocketServer*>(server);
         if (srv == nullptr)
         {
-            cout << "Error: Server pointer is not of type AdvancedSocketServer." << endl;
+            logStream << "Error: Server pointer is not of type AdvancedSocketServer." << endl;
             exit(1);
         }
         srv->BroadcastClientDetails();
-        cout << "[AdvancedServer] " << client_name << " handler exiting." << endl;
+        logStream << "[AdvancedServer] " << client_name << " handler exiting." << endl;
     }
 
     void AdvancedClientHandler::HandleClientMessage(
@@ -217,7 +217,7 @@ namespace ChatApp::server
         auto srv = dynamic_cast<AdvancedSocketServer*>(server);
         if (srv == nullptr)
         {
-            cout << "Error: Server pointer is not of type AdvancedSocketServer." << endl;
+            logStream << "Error: Server pointer is not of type AdvancedSocketServer." << endl;
             exit(1);
         }
         

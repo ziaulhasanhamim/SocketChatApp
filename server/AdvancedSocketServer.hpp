@@ -13,11 +13,13 @@ namespace ChatApp::server
 
     class AdvancedClientHandler : public ClientHandler
     {
+        ostream &logStream;
         MessageDispatcher<AdvancedSocketServer> dispatcher;
         void HandleClientMessage(const string &msg, const string &sender);
         void SetupDispatcher();
     public:
-        AdvancedClientHandler(const string &name, shared_ptr<ISocketDevice> s, AdvancedSocketServer *srv) : ClientHandler(s, (SocketServer *)srv)
+        AdvancedClientHandler(const string &name, shared_ptr<ISocketDevice> s, AdvancedSocketServer *srv, ostream &log) 
+            : ClientHandler(s, (SocketServer *)srv), logStream(log)
         {
             client_name = name;
             SetupDispatcher();
@@ -28,8 +30,9 @@ namespace ChatApp::server
 
     class AdvancedSocketServer : public SocketServer
     {
+        ostream &logStream = cout;
     public:
-        AdvancedSocketServer(shared_ptr<ISocketDevice> s) : SocketServer(s) {}
+        AdvancedSocketServer(shared_ptr<ISocketDevice> s, ostream &log) : SocketServer(s), logStream(log) {}
         void Start() override;
         void BroadcastMessage(const string &msg, const string &sender) override;
         void PrivateMessage(const string &msg, const string &sender, const string &recver);
