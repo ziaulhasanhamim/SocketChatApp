@@ -2,6 +2,10 @@
 #include "AdvancedSocketServer.hpp"
 #include <thread>
 #include "json.hpp"
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif // _
 
 using json = nlohmann::json;
 
@@ -19,7 +23,6 @@ namespace ChatApp::server
             auto clientSock = serverSocket->Accept();
             if (clientSock)
             {
-
                 char size[4];
                 string client_name;
 
@@ -84,7 +87,7 @@ namespace ChatApp::server
 
         for (auto &client : clients)
         {
-            client->SendMessage(formattedMsg, 4 + payload.size());
+            client->SockSendMessage(formattedMsg, 4 + payload.size());
         }
     }
 
@@ -107,7 +110,7 @@ namespace ChatApp::server
         {
             if (client->GetName() != sender)
             {
-                client->SendMessage(framedMsg, 4 + payload.size());
+                client->SockSendMessage(framedMsg, 4 + payload.size());
             }
         }
     }
@@ -129,7 +132,7 @@ namespace ChatApp::server
         {
             if (client->GetName() == recver)
             {
-                client->SendMessage(framedMsg, 4 + payload.size());
+                client->SockSendMessage(framedMsg, 4 + payload.size());
                 break;
             }
         }

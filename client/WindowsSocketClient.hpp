@@ -22,7 +22,7 @@ namespace ChatApp::client
     public:
         WindowsSocketClient(string ip, int port);
         void Connect();
-        void SendMessage(const string &message);
+        void SockSendMessage(const string &message);
         string ReceiveMessage();
         ~WindowsSocketClient();
     };

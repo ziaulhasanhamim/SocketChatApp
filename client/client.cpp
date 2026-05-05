@@ -22,7 +22,7 @@ int main()
     cout << "Enter your name: ";
     
     cin >> name;
-    client->SendMessage(name);
+    client->SockSendMessage(name);
     thread receiveThread([&client]()
     {
         while (true)        
@@ -40,7 +40,7 @@ int main()
         getline(cin, message);
         if (!message.empty())
         {
-            client->SendMessage(message);
+            client->SockSendMessage(message);
         }
     }
     return 0;

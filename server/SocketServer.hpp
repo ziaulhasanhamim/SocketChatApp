@@ -21,8 +21,8 @@ namespace ChatApp::server
     public:
         ClientHandler(shared_ptr<ISocketDevice> s, SocketServer *srv);
         virtual void HandleClient();
-        virtual void SendMessage(const string &msg);
-        void SendMessage(char* msg, size_t len);
+        virtual void SockSendMessage(const string &msg);
+        virtual void SockSendMessage(char* msg, size_t len);
         virtual const string &GetName() const { return client_name; }
         ~ClientHandler() { isRunning = false; }
         friend class SocketServer;

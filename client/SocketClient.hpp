@@ -10,7 +10,7 @@ namespace ChatApp::client
     {
     public:
         virtual void Connect() = 0;
-        virtual void SendMessage(const string &message) = 0;
+        virtual void SockSendMessage(const string &message) = 0;
         virtual string ReceiveMessage() = 0;
         virtual ~SocketClient() {}
     };

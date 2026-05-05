@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <string>
-
+#include <memory>
 using namespace std;
 
 namespace ChatApp::server
@@ -15,7 +15,7 @@ namespace ChatApp::server
         virtual int Receive(char *buffer, int len) = 0;
         virtual void Close() = 0;
         virtual void Listen() = 0;
-        virtual shared_ptr<ISocketDevice> Accept() = 0;
+        virtual std::shared_ptr<ISocketDevice> Accept() = 0;
         void operator<<(const string &data)
         {
             Send(data);

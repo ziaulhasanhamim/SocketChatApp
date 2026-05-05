@@ -38,7 +38,7 @@ namespace ChatApp::client
         }
     }
 
-    void UnixSocketClient::SendMessage(const string &message)
+    void UnixSocketClient::SockSendMessage(const string &message)
     {
         send(sock, (message + "\n").c_str(), (message + "\n").size(), 0);
     }

@@ -2,6 +2,7 @@
 #ifndef _WIN32
 #include "ISocketDevice.hpp"
 #include <sys/socket.h>
+#include "SocketException.hpp"
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -22,12 +23,20 @@ namespace ChatApp::server
             addr.sin_family = AF_INET;
             addr.sin_port = htons(port);
             inet_pton(AF_INET, ip.c_str(), &addr.sin_addr);
-            ::bind(fd, (struct sockaddr *)&addr, sizeof(addr));
+            auto code = ::bind(fd, (struct sockaddr *)&addr, sizeof(addr));
+            if (code < 0)
+            {
+                throw SocketException("Failed to bind socket");
+            }
         }
 
         void Listen() override
         {
-            listen(fd, SOMAXCONN);
+            auto code = listen(fd, SOMAXCONN);
+            if (code < 0)
+            {
+                throw SocketException("Failed to listen on socket");
+            }
         }
 
         shared_ptr<ISocketDevice> Accept() override
@@ -35,7 +44,11 @@ namespace ChatApp::server
             sockaddr_in addr;
             socklen_t len = sizeof(addr);
             int client_fd = accept(fd, (struct sockaddr *)&addr, &len);
-            return (client_fd < 0) ? nullptr : make_shared<UnixSocket>(client_fd);
+            if (client_fd < 0)
+            {
+                throw SocketException("Failed to accept connection");
+            }
+            return make_shared<UnixSocket>(client_fd);
         }
 
         bool Send(const string &data) override

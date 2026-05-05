@@ -10,7 +10,7 @@ namespace ChatApp::server
     ClientHandler::ClientHandler(shared_ptr<ISocketDevice> s, SocketServer *srv)
         : socket(s), server(srv) {}
 
-    void ClientHandler::SendMessage(const string &msg)
+    void ClientHandler::SockSendMessage(const string &msg)
     {
         if (socket)
         {
@@ -18,7 +18,7 @@ namespace ChatApp::server
         }
     }
 
-    void ClientHandler::SendMessage(char* msg, size_t len)
+    void ClientHandler::SockSendMessage(char* msg, size_t len)
     {
         if (socket)
         {
@@ -104,7 +104,7 @@ namespace ChatApp::server
         {
             if (client->GetName() != sender)
             {
-                client->SendMessage(formattedMsg);
+                client->SockSendMessage(formattedMsg);
             }
         }
     }

@@ -48,7 +48,7 @@ namespace ChatApp::client
         }
     }
 
-    void WindowsSocketClient::SendMessage(const string &message)
+    void WindowsSocketClient::SockSendMessage(const string &message)
     {
         send(sock, (message + "\n").c_str(), (message + "\n").size(), 0);
     }
